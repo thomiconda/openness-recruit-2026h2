@@ -1,0 +1,14 @@
+# 원본 자료와 임시 파일은 저장소에 올리지 않는다
+*.xlsx
+*.pdf
+*.pptx
+_work/
+__pycache__/
+Thumbs.db
+.DS_Store
+
+# 공개 저장소이므로 지원자 개인정보가 담긴 평문 파일은 올리지 않는다.
+# 공개되는 것은 암호화된 docs/ 폴더(와 코드)뿐이다. 평문 원본은 이 PC(OneDrive)에만 보관한다.
+data/
+assets/img/
+mockups/
