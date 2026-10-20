@@ -13,6 +13,7 @@
     { path: 'personal', label: '인적사항' },
     { path: 'applicant', label: '지원자 상세' },
     { path: 'schedule', label: '전형 일정' },
+    { path: 'interview', label: '면접 대상자' },
     { path: 'guide', label: '안내' }
   ];
 
@@ -137,9 +138,11 @@
 
     // 전형 단계: 지원자 데이터의 stage(1=서류 합격, 2=면접, 3=최종)가 채워지면 자동 집계
     var stages = ['서류 접수', '서류 합격', '면접', '최종'];
+    // stage 가 아직 입력되지 않았으면 면접 대상자 수로 서류 합격·면접 단계를 채운다. (전형 일정의 interviewees)
+    var targets = interviewees(), hasStage = A.some(function (a) { return a.stage; });
     var steps = stages.map(function (s, i) {
-      var c = i === 0 ? total : count(function (a) { return a.stage && a.stage >= i; });
-      return '<div class="st' + (i === 0 ? ' on' : '') + '"><b>' + (c || '–') + '</b>' + s + '</div>';
+      var c = i === 0 ? total : hasStage ? count(function (a) { return a.stage && a.stage >= i; }) : (i <= 2 ? targets.length : 0);
+      return '<div class="st' + (c ? ' on' : '') + '"><b>' + (c || '–') + '</b>' + s + '</div>';
     }).join('');
 
     var docs = [['포트폴리오', 'portfolio'], ['이력서', 'resume'], ['자기소개서', 'coverLetter']].map(function (d) {
@@ -147,16 +150,14 @@
       return '<div class="m"><span>' + d[0] + '</span><i><b style="width:' + (n / total * 100) + '%"></b></i><span>' + n + '/' + total + '</span></div>';
     }).join('');
 
-    var recent = A.slice().sort(function (x, y) { return y.appliedAt.localeCompare(x.appliedAt) || y.no - x.no; }).slice(0, 5);
-
     return '<h1>2026 하반기 채용 현황<small>조경 디자이너 · 실무팀 공유용</small></h1>' +
       '<section class="g g4" aria-label="지원 현황">' + kpi + '</section>' +
       '<section class="g g2">' +
         '<div class="c"><h3>전형 진행</h3><div class="steps">' + steps + '</div></div>' +
         '<div class="c"><h3>제출 서류 현황</h3>' + docs + '<p class="fn">△는 포트폴리오 등에 포함해 제출한 경우로 제출에 포함해 집계했습니다.</p></div>' +
       '</section>' +
-      '<h2>최근 지원자 <a href="#/list">전체 ' + total + '명 보기 →</a></h2>' +
-      '<div class="list">' + recent.map(row).join('') + '</div>';
+      '<h2>면접 대상자 <a href="#/interview">전체 ' + targets.length + '명 보기 →</a></h2>' +
+      (targets.length ? '<div class="list">' + targets.map(row).join('') + '</div>' : '<div class="empty2">면접 대상자가 확정되면 이곳에 표시됩니다.</div>');
   }
 
   /* ---------- 화면: 지원자 목록 ---------- */
@@ -212,8 +213,19 @@
 
   /* ---------- 화면: 인적사항 (전체 비교표 / 선택 비교) ---------- */
   var GROUPS = ['신입', '경력'];
-  var pSel = [4, 11];                 // 선택 비교 기본 선택 (접수번호 4번, 11번)
-  var pSort = { k: 'x', dir: 1 };
+  /* 인적사항 화면과 면접 대상자 화면은 같은 표·비교 화면을 쓴다. 화면마다 대상자·그룹 순서·선택·정렬이 따로 있다.
+   * - personal : 전체 지원자 (선택 비교 기본 선택 = 접수번호 4번, 11번)
+   * - interview: 전형 일정(data/schedule.js)의 interviewees 순서대로. 경력 → 신입 순으로 묶고 기본 정렬은 그 순서 그대로 */
+  var PCTX = {
+    personal: { path: 'personal', label: '지원자', groups: ['신입', '경력'], sel: [4, 11], sort: { k: 'x', dir: 1 } },
+    interview: { path: 'interview', label: '면접 대상자', groups: ['경력', '신입'], sel: null, sort: { k: null, dir: 1 }, keepOrder: true }
+  };
+  var pc = PCTX.personal;             // 지금 보고 있는 화면
+  function pool() { return pc === PCTX.interview ? interviewees() : A; }
+  function poolType(t) { return pool().filter(function (a) { return a.type === t; }); }
+  function interviewees() {
+    return ((window.SCHEDULE && window.SCHEDULE.interviewees) || []).map(findByName).filter(Boolean);
+  }
   function dash(v) { return v && String(v).trim() ? esc(v) : '–'; }
   function ageOf(a) { return a.birthYear ? a.birthYear + '년생 · ' + a.age + '세' : '–'; }
   function badge(a) { return '<span class="badge' + (a.type === '경력' ? ' e' : '') + '">' + esc(a.type) + '</span>'; }
@@ -263,17 +275,19 @@
     l: function (a) { return careerOf(a).length; }, d: function (a) { return a.appliedAt; }, x: function (a) { return a.no; }
   };
   function sortedBy(L) {
+    if (!pc.sort.k) return L.slice();            // 정렬을 고르지 않았으면 목록에 적힌 순서 그대로
     return L.slice().sort(function (p, q) {
-      return String(SORTKEY[pSort.k](p)).localeCompare(String(SORTKEY[pSort.k](q)), 'ko', { numeric: true }) * pSort.dir;
+      return String(SORTKEY[pc.sort.k](p)).localeCompare(String(SORTKEY[pc.sort.k](q)), 'ko', { numeric: true }) * pc.sort.dir;
     });
   }
 
   function paintFull() {
     var host = document.getElementById('v-full');
-    host.innerHTML = GROUPS.map(function (g) {
-      var L = sortedBy(byType(g));
+    host.innerHTML = pc.groups.map(function (g) {
+      var L = sortedBy(poolType(g));
+      if (!L.length) return '';
       var head = COLS.map(function (c) {
-        return '<th data-k="' + c[2] + '">' + c[0] + '<span class="s">' + (pSort.k === c[2] ? (pSort.dir > 0 ? '▲' : '▼') : '') + '</span></th>';
+        return '<th data-k="' + c[2] + '">' + c[0] + '<span class="s">' + (pc.sort.k === c[2] ? (pc.sort.dir > 0 ? '▲' : '▼') : '') + '</span></th>';
       }).join('');
       var body = L.map(function (a) {
         return '<tr>' + COLS.map(function (c) {
@@ -292,7 +306,7 @@
     Array.prototype.forEach.call(host.querySelectorAll('th'), function (h) {
       h.addEventListener('click', function () {
         var k = h.getAttribute('data-k');
-        pSort.dir = pSort.k === k ? -pSort.dir : 1; pSort.k = k; paintFull();
+        pc.sort.dir = pc.sort.k === k ? -pc.sort.dir : 1; pc.sort.k = k; paintFull();
       });
     });
   }
@@ -310,25 +324,27 @@
     ['서류 (포·이·자)', docsHtml, function (a) { return a.docs.portfolio + a.docs.resume + a.docs.coverLetter; }]
   ];
   function paintPick() {
-    document.getElementById('pickgrp').innerHTML = GROUPS.map(function (g) {
-      var L = byType(g), n = L.filter(function (a) { return pSel.indexOf(a.no) > -1; }).length;
+    document.getElementById('pickgrp').innerHTML = pc.groups.map(function (g) {
+      var L = poolType(g), n = L.filter(function (a) { return pc.sel.indexOf(a.no) > -1; }).length;
       return '<div class="pg"><h3>' + g + ' ' + L.length + '명<span><em>' + (n ? n + '명 선택' : '') + '</em></span></h3>' +
         L.map(function (a) {
-          return '<button class="pk" type="button" data-n="' + a.no + '" aria-pressed="' + (pSel.indexOf(a.no) > -1) + '"><i>' + pad(a.no) + '</i>' + esc(nameOf(a)) + '</button>';
+          return '<button class="pk" type="button" data-n="' + a.no + '" aria-pressed="' + (pc.sel.indexOf(a.no) > -1) + '"><i>' + pad(a.no) + '</i>' + esc(nameOf(a)) + '</button>';
         }).join('') + '</div>';
     }).join('');
     Array.prototype.forEach.call(document.querySelectorAll('.pk'), function (b) {
       b.addEventListener('click', function () {
-        var n = +b.getAttribute('data-n'), i = pSel.indexOf(n);
-        if (i > -1) pSel.splice(i, 1);
-        else if (pSel.length < 4) pSel.push(n);
+        var n = +b.getAttribute('data-n'), i = pc.sel.indexOf(n);
+        if (i > -1) pc.sel.splice(i, 1);
+        else if (pc.sel.length < 4) pc.sel.push(n);
         else { alert('최대 4명까지 선택할 수 있습니다.'); return; }
         paintPick(); paintCmp();
       });
     });
   }
   function paintCmp() {
-    var P = pSel.map(function (n) { return A.filter(function (a) { return a.no === n; })[0]; });
+    var P = pc.keepOrder
+      ? pool().filter(function (a) { return pc.sel.indexOf(a.no) > -1; })       // 목록에 적힌 순서 유지
+      : pc.sel.map(function (n) { return A.filter(function (a) { return a.no === n; })[0]; });
     var cmp = document.getElementById('cmp'), st = document.getElementById('st');
     if (!P.length) {
       cmp.innerHTML = '<tbody><tr><td class="empty">위에서 비교할 지원자를 선택해 주세요.</td></tr></tbody>';
@@ -353,17 +369,29 @@
     }).join('');
   }
 
+  // 기본 보기: 인적사항은 전체 비교표. 면접 대상자는 PC에서 선택 비교, 모바일(720px 이하, CSS 카드 전환 기준)에서 전체 비교표.
+  // 주소에 /full 또는 /compare 가 있으면 그 보기를 그대로 쓴다.
+  function isMobile() { return !!(window.matchMedia && window.matchMedia('(max-width:720px)').matches); }
+  function isCompare(sub) {
+    if (sub === 'compare') return true;
+    if (sub === 'full') return false;
+    return pc === PCTX.interview && !isMobile();
+  }
   function viewPersonal(sub) {
-    var cmp = sub === 'compare';
-    return '<h1>인적사항<small>지원자 ' + A.length + '명 · 신입 ' + byType('신입').length + '명 / 경력 ' + byType('경력').length + '명</small></h1>' +
-      '<div class="seg" role="tablist"><a role="tab" href="#/personal" aria-selected="' + !cmp + '">전체 비교표</a><a role="tab" href="#/personal/compare" aria-selected="' + cmp + '">선택 비교</a></div>' +
-      '<p class="hint">' + (cmp ? '비교할 지원자를 신입·경력 구분 없이 최대 4명까지 골라 항목별로 비교합니다.' : '신입·경력 그룹별로 모든 지원자를 한 번에 봅니다. (PC: 표 · 모바일: 카드)') + '</p>' +
+    var cmp = isCompare(sub), base = '#/' + pc.path;
+    var fullHref = pc === PCTX.interview ? base + '/full' : base, cmpHref = base + '/compare';
+    if (!pc.sel) pc.sel = pool().map(function (a) { return a.no; }).slice(0, 4);   // 면접 대상자 화면은 처음에 모두 선택
+    var title = pc === PCTX.interview ? '면접 대상자' : '인적사항';
+    var sum = pc.label + ' ' + pool().length + '명 · ' + pc.groups.map(function (g) { return g + ' ' + poolType(g).length + '명'; }).join(' / ');
+    return '<h1>' + title + '<small>' + sum + '</small></h1>' +
+      '<div class="seg" role="tablist"><a role="tab" href="' + fullHref + '" aria-selected="' + !cmp + '">전체 비교표</a><a role="tab" href="' + cmpHref + '" aria-selected="' + cmp + '">선택 비교</a></div>' +
+      '<p class="hint">' + (cmp ? '비교할 ' + pc.label + '를 신입·경력 구분 없이 최대 4명까지 골라 항목별로 비교합니다.' : pc.groups.join('·') + ' 그룹별로 모든 ' + pc.label + '를 한 번에 봅니다. (PC: 표 · 모바일: 카드)') + '</p>' +
       (cmp
         ? '<section class="view on cmp"><div class="pickgrp" id="pickgrp"></div><div class="tw"><table id="cmp"></table></div><div class="st-wrap" id="st"></div></section>'
         : '<section class="view on full" id="v-full"></section>');
   }
   function bindPersonal(sub) {
-    if (sub === 'compare') { paintPick(); paintCmp(); } else { paintFull(); }
+    if (isCompare(sub)) { paintPick(); paintCmp(); } else { paintFull(); }
   }
 
   /* ---------- 화면: 준비 중 (4단계 이후) ---------- */
@@ -474,8 +502,15 @@
   function mdText(s) { var d = toD(s); return d ? (d.getMonth() + 1) + '.' + pad(d.getDate()) : ''; }
   function mdwText(s) { var d = toD(s); return d ? (d.getMonth() + 1) + '.' + pad(d.getDate()) + '(' + WD[d.getDay()] + ')' : ''; }
   function tent(st) { return st.tentative ? ' (예정)' : ''; }   // 날짜가 확정 전이면 "(예정)" 표시
-  function whenText(st) { return st.start ? (st.end && st.end !== st.start ? mdText(st.start) + ' ~ ' + mdText(st.end) : mdText(st.start)) + tent(st) : '일정 미정'; }
-  function whenWText(st) { return st.start ? (st.end && st.end !== st.start ? mdwText(st.start) + ' ~ ' + mdwText(st.end) : mdwText(st.start)) + tent(st) : '일정 미정'; }
+  // st.text 가 있으면 날짜 대신 그 문장을 표시한다. (경력·신입 면접처럼 날짜가 둘 이상일 때) 상태 계산은 start·end 를 그대로 쓴다.
+  function whenText(st) {
+    if (st.text) return esc(st.text).replace(/ ~ /g, '\u00a0~\u00a0').replace(/ \/ /g, '<br>') + tent(st);   // 시간 범위는 줄바꿈하지 않는다
+    return st.start ? (st.end && st.end !== st.start ? mdText(st.start) + ' ~ ' + mdText(st.end) : mdText(st.start)) + tent(st) : '일정 미정';
+  }
+  function whenWText(st) {
+    if (st.text) return esc(st.text) + tent(st);
+    return st.start ? (st.end && st.end !== st.start ? mdwText(st.start) + ' ~ ' + mdwText(st.end) : mdwText(st.start)) + tent(st) : '일정 미정';
+  }
   function stageStatus(st) {
     if (!st.start) return 'next';
     var e = toD(st.end || st.start), s = toD(st.start);
@@ -491,9 +526,10 @@
   function nextStage() {
     return SCH.stages.filter(function (s) { return s.start && toD(s.end || s.start) >= TODAY; })[0] || null;
   }
-  function timeRange(t, minutes) {      // "10:00" + 30분 -> "10:00 ~ 10:30"
+  function timeRange(t, minutes, startOnly) {      // "10:00" + 30분 -> "10:00 ~ 10:30" (startOnly 면 "10:00 시작")
     var m = String(t).match(/^(\d{1,2}):(\d{2})$/);
     if (!m) return esc(t);
+    if (startOnly) return pad(+m[1]) + ':' + m[2] + ' 시작';
     var total = +m[1] * 60 + +m[2] + (minutes || 30);
     return pad(+m[1]) + ':' + m[2] + ' ~ ' + pad(Math.floor(total / 60) % 24) + ':' + pad(total % 60);
   }
@@ -511,8 +547,8 @@
     }).join('');
     var n = nextStage();
     var now = n ? '<div class="nowc"><span class="chip-s now">다음 일정</span><b>' + esc(n.label) + '</b><span>' + whenWText(n) + '</span><span class="dd">' + ddayText(n.start) + '</span></div>' : '';
-    var info = [['장소', iv.place], ['소요 시간', (iv.minutes || 30) + '분 (지원자 1명당)'], ['면접관', iv.panel], ['준비물', iv.bring]].map(function (r) {
-      return '<dt>' + r[0] + '</dt><dd' + (r[1] ? '' : ' class="tbd"') + '>' + (r[1] ? esc(r[1]) : '미정') + '</dd>';
+    var info = [['장소', iv.place], ['소요 시간', iv.duration || (iv.minutes || 30) + '분 (지원자 1명당)'], ['면접관', iv.panel], ['진행 방식', iv.method], ['준비물', iv.bring]].map(function (r) {
+      return '<dt>' + r[0] + '</dt><dd' + (r[1] ? '' : ' class="tbd"') + '>' + (r[1] ? esc(r[1]).replace(/ \/ /g, '<br>') : '미정') + '</dd>';
     }).join('');
 
     var slots = (SCH.slots || []).slice().sort(function (x, y) { return (x.date + x.time).localeCompare(y.date + y.time); });
@@ -527,7 +563,7 @@
           g[d].map(function (x) {
             var a = findByName(x.name);
             var who = a ? '<a class="nl" href="#/applicant/' + a.no + '">' + avatar(a, 30) + '<span>' + esc(nameOf(a)) + '</span></a>' : '<b>' + esc(x.name) + '</b>';
-            return '<tr><td>' + timeRange(x.time, iv.minutes) + '</td><td>' + who + '</td><td>' + (a ? esc(a.type) : '–') + '</td><td>' + esc(x.panel || iv.panel || '–') + '</td></tr>';
+            return '<tr><td>' + timeRange(x.time, iv.minutes, x.startOnly) + '</td><td>' + who + '</td><td>' + (a ? esc(a.type) : '–') + '</td><td>' + esc(x.panel || iv.panel || '–') + '</td></tr>';
           }).join('') + '</tbody></table></div>';
       }).join('') + '</div>';
     }
@@ -548,7 +584,9 @@
     }).join('');
     var rows = [
       ['모집 기간', range(stage('apply'))],
-      ['면접 기간', range(stage('interview'))],
+      ['면접 일정', range(stage('interview'))],
+      ['면접 장소', SCH.interview && SCH.interview.place ? esc(SCH.interview.place) : '미정'],
+      ['면접 진행 방식', SCH.interview && SCH.interview.method ? esc(SCH.interview.method).replace(/ \/ /g, '<br>') : '미정'],
       ['급여', G.salary || '협의'],
       ['제출 자료', G.submit ? esc(G.submit.what) + '<small>(' + esc(G.submit.include) + ')</small>' : '–'],
       [G.contact ? G.contact.label : '문의', G.contact ? '<a href="mailto:' + esc(G.contact.email) + '">' + esc(G.contact.email) + '</a>' : '–']
@@ -596,7 +634,8 @@
     switch (r.path) {
       case '': html = viewHome(); break;
       case 'list': html = viewList(); after = bindList; break;
-      case 'personal': html = viewPersonal(r.arg); after = function () { bindPersonal(r.arg); }; break;
+      case 'personal': pc = PCTX.personal; html = viewPersonal(r.arg); after = function () { bindPersonal(r.arg); }; break;
+      case 'interview': pc = PCTX.interview; html = viewPersonal(r.arg); after = function () { bindPersonal(r.arg); }; break;
       case 'applicant': html = viewApplicant(r.arg); after = bindApplicant; break;
       case 'schedule': html = viewSchedule(); break;
       case 'guide': html = viewGuide(); break;
