@@ -547,7 +547,7 @@
     }).join('');
     var n = nextStage();
     var now = n ? '<div class="nowc"><span class="chip-s now">다음 일정</span><b>' + esc(n.label) + '</b><span>' + whenWText(n) + '</span><span class="dd">' + ddayText(n.start) + '</span></div>' : '';
-    var info = [['장소', iv.place], ['소요 시간', iv.duration || (iv.minutes || 30) + '분 (지원자 1명당)'], ['면접관', iv.panel], ['진행 방식', iv.method], ['준비물', iv.bring]].map(function (r) {
+    var info = [['장소', iv.place], ['소요 시간', iv.duration || (iv.minutes || 30) + '분 (지원자 1명당)'], ['면접관', iv.panel], ['진행 방식', iv.method]].map(function (r) {
       return '<dt>' + r[0] + '</dt><dd' + (r[1] ? '' : ' class="tbd"') + '>' + (r[1] ? esc(r[1]).replace(/ \/ /g, '<br>') : '미정') + '</dd>';
     }).join('');
 
