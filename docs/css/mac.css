@@ -1,0 +1,64 @@
+/* 맥 OS 바탕화면 느낌 덧입힘 — 기존 화면 구성(css/style.css · js/app.js)은 그대로 두고 겉모습만 바꾼다.
+ *   바탕: 풍경 사진 / 메뉴바: 투명 + 시계 / 본문: 신호등 버튼이 달린 유리 창 / 아래: Dock(메뉴 바로가기)
+ * 이 파일을 <link>에서 빼면 바로 기존 애플 스타일로 돌아간다. 새로 만든 클래스는 모두 mc- 접두어를 쓴다.
+ * 배경 사진은 assets/lock.jpg (비밀번호 화면과 같은 사진) */
+:root{--mc-wall:url(../assets/lock.jpg);--mc-d:clamp(38px,calc((100vw - 54px) / 7.9),58px)}
+body{background:#10161a}
+body::before{content:"";position:fixed;inset:0;z-index:-2;background:var(--mc-wall) 50% 62%/cover no-repeat}
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(180deg,rgba(8,28,56,.4) 0%,rgba(8,28,56,.08) 30%,rgba(6,22,10,.05) 60%,rgba(6,22,10,.5) 100%)}
+
+/* 메뉴바: 사진 위에 뜨는 투명 막대 */
+.top{background:linear-gradient(180deg,rgba(0,0,0,.32),rgba(0,0,0,0));border-bottom:0;-webkit-backdrop-filter:blur(6px) saturate(140%);backdrop-filter:blur(6px) saturate(140%)}
+.top{transition:background .25s}
+.top.mc-scrolled{background:rgba(20,30,40,.66);-webkit-backdrop-filter:blur(22px) saturate(160%);backdrop-filter:blur(22px) saturate(160%)}   /* 스크롤하면 흰 글자가 흰 창과 겹쳐도 읽히도록 어둡게 */
+.bar{height:36px}
+.brand{color:#fff;text-shadow:0 0 8px rgba(0,0,0,.45)}
+.brand img{display:none}
+.brand::before{content:"";width:15px;height:15px;border-radius:50%;flex:none;background:radial-gradient(circle at 35% 30%,#a9bb85,#566a3c);box-shadow:inset 0 0 0 1px rgba(255,255,255,.6)}
+nav{margin-right:auto;margin-left:8px}
+nav a{color:rgba(255,255,255,.95);font-weight:500;text-shadow:0 0 8px rgba(0,0,0,.45)}
+nav a:hover{color:#fff}
+nav a[aria-current="page"]{color:#fff;font-weight:700}
+.mc-clk{color:#fff;font:500 13px var(--sans);text-shadow:0 0 8px rgba(0,0,0,.45);white-space:nowrap}
+
+/* 본문: 신호등 버튼이 달린 유리 창 (안쪽 내용은 기존 그대로) */
+main{position:relative;width:calc(100% - 24px);max-width:1200px;margin:16px auto 0;padding:58px clamp(16px,3vw,36px) 96px;border-radius:clamp(18px,2.4vw,26px);
+  background:rgba(248,248,250,.88);-webkit-backdrop-filter:blur(44px) saturate(190%);backdrop-filter:blur(44px) saturate(190%);
+  box-shadow:0 0 0 .5px rgba(0,0,0,.28),0 30px 80px rgba(0,0,0,.45),inset 0 0 0 1px rgba(255,255,255,.5)}
+main::before{content:"";position:absolute;left:20px;top:19px;width:13px;height:13px;border-radius:50%;background:#ff5f57;box-shadow:21px 0 0 #febc2e,42px 0 0 #28c840;animation:none}
+.hero-a{padding-top:28px}
+main:focus-visible{outline:none}   /* 화면 이동 때 본문으로 옮겨 주는 초점이 둥근 창에 파란 테두리로 보이지 않게 */
+.foot{background:transparent;border-top:0;color:rgba(255,255,255,.92);text-shadow:0 1px 6px rgba(0,0,0,.65);padding:22px 22px 130px}
+
+/* 비밀번호 화면에서는 메뉴 바로가기(Dock)를 숨긴다 */
+.locked .mc-dock{display:none}
+
+/* Dock */
+.mc-app{--sz:58px;position:relative;width:var(--sz);height:var(--sz);border-radius:22.5%;display:grid;place-items:center;color:#fff;overflow:hidden;flex:none;transition:width .08s,height .08s;
+  box-shadow:0 3px 8px rgba(0,0,0,.32),inset 0 0 0 .5px rgba(255,255,255,.45),inset 0 1px 1px rgba(255,255,255,.55)}
+.mc-app::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,0) 52%);pointer-events:none}
+.mc-app svg{width:56%;height:56%;fill:none;stroke:#fff;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.28));position:relative;z-index:1}
+.mc-app.mc-cal{background:#fff;color:#1d1d1f}.mc-app.mc-cal::after{display:none}
+.mc-app.mc-cal .mc-h{position:absolute;left:0;right:0;top:0;height:30%;display:grid;place-items:center;background:linear-gradient(#ff5a50,#ff3b30);color:#fff;font:700 calc(var(--sz)*.15)/1 var(--sans);letter-spacing:.02em}
+.mc-app.mc-cal .mc-d{position:absolute;left:0;right:0;top:30%;bottom:0;display:grid;place-items:center;font:300 calc(var(--sz)*.5)/1 var(--sans);letter-spacing:-.04em;padding-bottom:2%}
+.mc-g-blue{background:linear-gradient(180deg,#5ac8fa,#0a7aff)}.mc-g-green{background:linear-gradient(180deg,#7be495,#1fb356)}
+.mc-g-orange{background:linear-gradient(180deg,#ffc15a,#ff8a00)}.mc-g-purple{background:linear-gradient(180deg,#d6a0ff,#8e44f0)}
+.mc-g-pink{background:linear-gradient(180deg,#ff8fb0,#ff2d55)}.mc-g-gray{background:linear-gradient(180deg,#b8b8be,#6c6c72)}
+.mc-dock{position:fixed;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);max-width:calc(100vw - 12px);display:flex;align-items:flex-end;gap:clamp(4px,1.1vw,10px);
+  padding:clamp(6px,1.2vw,9px) clamp(8px,1.4vw,12px);border-radius:clamp(20px,3.4vw,28px);z-index:55;
+  background:rgba(255,255,255,.2);-webkit-backdrop-filter:blur(34px) saturate(190%);backdrop-filter:blur(34px) saturate(190%);
+  box-shadow:0 12px 40px rgba(0,0,0,.34),inset 0 0 0 1px rgba(255,255,255,.36),inset 0 1px 0 rgba(255,255,255,.5)}
+.mc-it{position:relative;display:flex;flex-direction:column;align-items:center;text-decoration:none;border-radius:22.5%}
+.mc-it .mc-app{--sz:var(--mc-d)}
+.mc-it i{position:absolute;bottom:-6px;width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.9);display:none}
+.mc-it[aria-current="page"] i{display:block}
+.mc-it em{position:absolute;bottom:calc(100% + 12px);left:50%;transform:translateX(-50%);white-space:nowrap;padding:5px 12px;border-radius:9px;background:rgba(40,40,44,.78);color:#fff;font:500 13px/1 var(--sans);font-style:normal;opacity:0;pointer-events:none;transition:opacity .12s}
+.mc-it:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.mc-it:focus-visible em{opacity:1}
+@media(hover:hover){.mc-it:hover em{opacity:1}}
+
+/* 폭에 따른 정리: 메뉴는 Dock이 맡으므로 좁은 화면에서는 위쪽 글자 메뉴를 숨긴다 */
+@media(max-width:860px){.top .bar{flex-wrap:nowrap;height:36px;padding:0 16px}.brand{width:auto;flex:1;min-width:0}}
+@media(max-width:760px){nav{display:none}.mc-clk{margin-left:auto;flex:none}.bar{gap:12px}}
+@media(max-width:480px){.mc-clk .mc-dt{display:none}main{width:calc(100% - 16px);margin-top:10px;padding-top:54px}}
+@media(prefers-reduced-motion:reduce){.mc-app{transition:none}}
