@@ -96,6 +96,7 @@
       if (!(err && err.name === 'OperationError')) console.error('[gate]', err);   // 비밀번호 오류가 아닌 문제는 콘솔에 남긴다
       fails++;
       $('gatePw').value = '';
+      if ($('gateField')) $('gateField').classList.remove('has-val');
       btn.disabled = true;
       msg.textContent = '비밀번호가 맞지 않습니다.' + (fails > 2 ? ' 잠시 후 다시 시도해 주세요.' : '');
       var fld = $('gateField');
@@ -112,6 +113,10 @@
       $('gateBtn').disabled = true; return;
     }
     $('gateForm').addEventListener('submit', submit);
+    var pwEl = $('gatePw'), fldEl = $('gateField');       // 입력하면 입장 버튼을 흰색으로 채운다 (브라우저의 :placeholder-shown 에 기대지 않는다)
+    var sync = function () { if (fldEl) fldEl.classList.toggle('has-val', !!pwEl.value); };
+    ['input', 'change', 'keyup'].forEach(function (ev) { pwEl.addEventListener(ev, sync); });
+    sync();
     try {                                                 // 같은 탭에서 이미 입력했다면 바로 연다
       var saved = sessionStorage.getItem(SS);
       if (saved) {
