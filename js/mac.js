@@ -41,6 +41,23 @@
     setInterval(function () { clk.innerHTML = clockHTML(); }, 15000);
   }
 
+  /* 상단 메뉴가 한 줄에 다 들어가는지 실제 폭으로 재서, 안 들어가면 메뉴를 아래 줄로 내린다(줄바꿈되어 전부 보임).
+   * 한 줄 상태로 되돌려 재고(메뉴가 잘리는지: scrollWidth > clientWidth) 결과에 따라 mc-wrap 을 붙이거나 뗀다. */
+  var navEl0 = document.getElementById('nav'), raf = 0, lastW = -1;
+  function fitBar() {
+    if (!bar || !navEl0 || !bar.offsetWidth) return;                    // 비밀번호 화면 등으로 보이지 않을 때는 건너뜀
+    bar.classList.remove('mc-wrap');
+    bar.classList.toggle('mc-wrap', navEl0.scrollWidth > navEl0.clientWidth + 1);
+  }
+  function scheduleFit() { cancelAnimationFrame(raf); raf = requestAnimationFrame(fitBar); }
+  if (bar) {
+    addEventListener('resize', scheduleFit);
+    if (window.ResizeObserver) new ResizeObserver(function () { var w = bar.offsetWidth; if (w !== lastW) { lastW = w; scheduleFit(); } }).observe(bar);   // 입장 후 처음 보일 때·폭이 바뀔 때
+    if (navEl0 && window.MutationObserver) new MutationObserver(scheduleFit).observe(navEl0, { childList: true });                              // 화면이 바뀌어 메뉴가 다시 그려질 때
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleFit);                                                         // 글꼴이 늦게 로드되면 글자 폭이 달라진다
+    scheduleFit();
+  }
+
   /* 스크롤하면 메뉴바를 어두운 유리로 (맨 위에서는 투명) */
   var top = document.querySelector('.top');
   if (top) {
@@ -65,25 +82,78 @@
       if (a.getAttribute('data-k') === k) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
   }
-  addEventListener('hashchange', mark); mark();
+  // js/app.js 는 화면 이동 링크를 직접 가로채 history.pushState 로 주소만 바꾸는데, pushState 는 hashchange 를 일으키지 않는다.
+  // 그래서 화면이 그려질 때마다 메뉴(#nav)가 다시 만들어지는 것을 지켜보고(MutationObserver), 그때마다 표시를 맞춘다.
+  addEventListener('hashchange', mark); addEventListener('popstate', mark);
+  var navEl = document.getElementById('nav');
+  if (navEl && window.MutationObserver) new MutationObserver(mark).observe(navEl, { childList: true });
+  document.addEventListener('click', function () { setTimeout(mark, 0); });
+  mark();
 
-  /* 마우스가 있는 기기에서만 Dock 아이콘이 커진다 (터치·"동작 줄이기" 설정에서는 끈다)
-   * 마우스 가까이 있는 아이콘이 커지고 옆 아이콘은 밀려나며 Dock 전체가 함께 커진다.
-   * 가장 크게 커져도 원래 크기의 MAX_SCALE 배까지만 커진다. (너무 크면 이 값을 낮춘다) */
-  if (matchMedia('(hover:hover) and (pointer:fine)').matches && !matchMedia('(prefers-reduced-motion:reduce)').matches) {
-    var MAX_SCALE = 1.45, REACH = 110;         // 상한 배율, 마우스가 영향을 주는 거리(px)
-    var its = [].slice.call(dock.querySelectorAll('.mc-it')), base = 0;
-    dock.addEventListener('mouseenter', function () { base = its[0].querySelector('.mc-app').offsetWidth; });   // 평소 크기
-    dock.addEventListener('mousemove', function (e) {
-      if (!base) base = its[0].querySelector('.mc-app').offsetWidth;
-      its.forEach(function (it) {
-        var r = it.getBoundingClientRect(), d = Math.abs(e.clientX - (r.left + r.width / 2));
-        var f = d < REACH ? Math.cos((d / REACH) * Math.PI / 2) : 0;      // 가까울수록 1, 멀어지면 0
-        it.querySelector('.mc-app').style.setProperty('--sz', (base * (1 + (MAX_SCALE - 1) * f)).toFixed(1) + 'px');
-      });
+  /* Dock 확대·이름 말풍선
+   *  - 마우스(PC): 가까운 아이콘이 커지고 옆 아이콘이 밀려나며 Dock 전체가 함께 커진다. (CSS :hover 가 이름 말풍선을 띄운다)
+   *  - 터치(폰·태블릿): 아이콘을 누르면 이름 말풍선이 뜨며 살짝 떠오르고, 손가락을 밀면 PC처럼 커진다.
+   *    누르기만 한 경우(탭)에는 아이콘이 밀리지 않아 눌림이 빗나가지 않고 그대로 이동한다.
+   *    밀다가 놓으면 말풍선이 떠 있던 아이콘의 화면으로 이동한다.
+   *  - 가장 크게 커져도 원래 크기의 MAX_SCALE 배까지만, 그리고 Dock 폭이 화면 폭을 넘지 않는 범위까지만 커진다. */
+  var MAX_SCALE = 1.45, REACH = 110;          // 상한 배율, 손가락·마우스가 영향을 주는 거리(px). 너무 크면 MAX_SCALE 을 낮춘다
+  var reduce = matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var its = [].slice.call(dock.querySelectorAll('.mc-it')), base = 0, restW = 0;
+
+  function measure() { base = its[0].querySelector('.mc-app').offsetWidth; restW = dock.getBoundingClientRect().width; }
+  function weights(x) {
+    return its.map(function (it) {
+      var r = it.getBoundingClientRect(), d = Math.abs(x - (r.left + r.width / 2));
+      return d < REACH ? Math.cos((d / REACH) * Math.PI / 2) : 0;             // 가까울수록 1, 멀어지면 0
     });
-    dock.addEventListener('mouseleave', function () {
-      its.forEach(function (it) { it.querySelector('.mc-app').style.removeProperty('--sz'); });
+  }
+  function grow(x) {
+    if (reduce) return weights(x);
+    var ws = weights(x), sum = ws.reduce(function (a, b) { return a + b; }, 0);
+    var want = base * (MAX_SCALE - 1) * sum, room = Math.max(0, window.innerWidth - 12 - restW);
+    var k = want > room && want > 0 ? room / want : 1;                         // 화면 폭을 넘지 않게 확대 폭을 줄인다
+    ws.forEach(function (w, i) { its[i].querySelector('.mc-app').style.setProperty('--sz', (base * (1 + (MAX_SCALE - 1) * w * k)).toFixed(1) + 'px'); });
+    return ws;
+  }
+  function resetSizes() { its.forEach(function (it) { it.querySelector('.mc-app').style.removeProperty('--sz'); }); }
+
+  if (matchMedia('(hover:hover) and (pointer:fine)').matches) {
+    if (!reduce) {                                                              // PC: 마우스를 올리면 커진다
+      dock.addEventListener('mouseenter', measure);
+      dock.addEventListener('mousemove', function (e) { if (!base) measure(); grow(e.clientX); });
+      dock.addEventListener('mouseleave', resetSizes);
+    }
+  } else {                                                                      // 터치
+    var down = false, dragging = false, startX = 0, tipIt = null, timer = 0, suppress = false;
+    function tip(it) {
+      its.forEach(function (x) { x.classList.toggle('mc-tip', x === it); });
+      tipIt = it;
+      if (!it) return;
+      var em = it.querySelector('em'); em.style.setProperty('--mc-tx', '0px');          // 말풍선이 화면 밖으로 나가면 안쪽으로 밀어 넣는다
+      var r = em.getBoundingClientRect(), m = 8, dx = r.left < m ? m - r.left : (r.right > window.innerWidth - m ? window.innerWidth - m - r.right : 0);
+      em.style.setProperty('--mc-tx', dx + 'px');
+    }
+    function nearest(ws) { var b = -1, bw = 0.3; ws.forEach(function (w, i) { if (w > bw) { bw = w; b = i; } }); return b < 0 ? null : its[b]; }
+    function clear() { tip(null); resetSizes(); dragging = false; }
+    dock.addEventListener('pointerdown', function (e) {
+      clearTimeout(timer); down = true; dragging = false; startX = e.clientX; measure();
+      tip(e.target.closest ? e.target.closest('.mc-it') : null);                       // 누르자마자 이름 말풍선
     });
+    dock.addEventListener('pointermove', function (e) {
+      if (!down) return;
+      if (!dragging && Math.abs(e.clientX - startX) > 8) dragging = true;               // 손가락을 밀기 시작하면 PC처럼 커진다
+      if (dragging) tip(nearest(grow(e.clientX)));
+    });
+    dock.addEventListener('pointerup', function () {
+      if (!down) return; down = false;
+      if (dragging && tipIt) {                                                          // 밀다가 놓으면 말풍선이 떠 있던 화면으로 이동
+        suppress = true; setTimeout(function () { suppress = false; }, 400);
+        location.hash = tipIt.getAttribute('href');
+      }
+      timer = setTimeout(clear, 650);                                                   // 탭이면 말풍선을 잠깐 보여 준 뒤 사라진다
+    });
+    dock.addEventListener('pointercancel', function () { down = false; clearTimeout(timer); clear(); });
+    dock.addEventListener('click', function (e) { if (suppress) { e.preventDefault(); e.stopPropagation(); suppress = false; } }, true);
+    dock.addEventListener('contextmenu', function (e) { e.preventDefault(); });         // 길게 눌러도 링크 미리보기 메뉴가 뜨지 않게
   }
 })();

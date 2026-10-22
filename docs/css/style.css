@@ -391,7 +391,7 @@ table.ts td{vertical-align:middle}table.ts a.nl span{line-height:1.2}
 /* 비밀번호 입력 화면 */
 .locked header,.locked main,.locked footer,.locked .skip{display:none}
 .locked{background:#2f5784}
-.gate{position:relative;min-height:100vh;min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;justify-items:center;overflow:hidden;padding:clamp(44px,9vh,96px) 24px clamp(36px,8vh,84px);color:#fff;text-align:center;
+.gate{position:relative;min-height:100vh;min-height:100dvh;display:grid;grid-template-rows:auto 1fr auto;justify-items:center;overflow:hidden;padding:clamp(44px,9vh,96px) 24px calc(clamp(36px,8vh,84px) + var(--kb,0px));transition:padding-bottom .2s var(--ease);color:#fff;text-align:center;
   background:#1d3a1f url(../assets/lock.jpg) 50% 62%/cover no-repeat}
 .gate[hidden]{display:none}
 .gate::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(8,28,56,.74) 0%,rgba(8,28,56,.58) 22%,rgba(8,28,56,.3) 36%,rgba(8,28,56,0) 50%,rgba(6,22,10,0) 58%,rgba(6,22,10,.58) 100%)}
@@ -420,16 +420,18 @@ table.ts td{vertical-align:middle}table.ts a.nl span{line-height:1.2}
 @media(max-width:480px){.lock-user{max-width:none}}
 /* 터치 기기·좁은 화면: 입력창과 화살표를 손가락 크기로 키우고, 로그인 영역을 화면 가운데로 올려 키패드에 가려지지 않게 한다 */
 @media(pointer:coarse),(max-width:760px){
-  .lock-user{grid-row:2;align-self:center;margin-bottom:clamp(40px,30vh,260px)}   /* 가운데보다 위로: 키패드가 올라와도 입력창이 보인다 */
   .lock-field{max-width:330px;margin-top:16px}
-  .gate::after{background:linear-gradient(180deg,rgba(8,28,56,.74) 0%,rgba(8,28,56,.62) 24%,rgba(8,28,56,.54) 40%,rgba(8,28,56,.5) 54%,rgba(6,22,10,.3) 68%,rgba(6,22,10,.52) 100%)}   /* 로그인 영역이 오는 가운데 띠를 어둡게: 밝은 지평선 위에서도 흰 글자가 읽힌다 */
   .lock-field input{height:48px;padding:0 20px;font-size:16px;background:rgba(14,36,72,.5)}
   .lock-field input::placeholder{font-size:16px}
   .lock-field button{width:48px;height:48px}
   .lock-field button svg{width:22px;height:22px}
   .gate .gate-msg{font-size:14px}
 }
-@media(prefers-reduced-motion:reduce){.lock-field.shake{animation:none}}
+/* 키패드가 열려 로그인 영역이 위로 올라오는 동안: 밝은 지평선 위에서도 흰 글자가 읽히도록 가운데 띠를 어둡게 */
+.gate.kb-open::after{background:linear-gradient(180deg,rgba(8,28,56,.74) 0%,rgba(8,28,56,.62) 24%,rgba(8,28,56,.54) 40%,rgba(8,28,56,.5) 54%,rgba(6,22,10,.3) 68%,rgba(6,22,10,.52) 100%)}
+/* 키가 작은 폰: 키패드가 열려 있는 동안만 로고·이름·안내문구를 숨겨 입력창과 입장 버튼이 들어갈 자리를 만든다 */
+@media(max-height:700px){.gate.kb-open .lock-avatar,.gate.kb-open .lock-user h1,.gate.kb-open .lock-sub{display:none}}
+@media(prefers-reduced-motion:reduce){.lock-field.shake{animation:none}.gate{transition:none}}
 .hero.ld{background:var(--bg-gray);aspect-ratio:16/8}.ldn{padding:20px 0}
 
 /* 경력 추정 표시 */

@@ -15,7 +15,6 @@ body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;bac
 .brand{color:#fff;text-shadow:0 0 8px rgba(0,0,0,.45)}
 .brand img{display:none}
 .brand::before{content:"";width:15px;height:15px;border-radius:50%;flex:none;background:radial-gradient(circle at 35% 30%,#a9bb85,#566a3c);box-shadow:inset 0 0 0 1px rgba(255,255,255,.6)}
-nav{margin-right:auto;margin-left:8px}
 nav a{color:rgba(255,255,255,.95);font-weight:500;text-shadow:0 0 8px rgba(0,0,0,.45)}
 nav a:hover{color:#fff}
 nav a[aria-current="page"]{color:#fff;font-weight:700}
@@ -34,7 +33,7 @@ main:focus-visible{outline:none}   /* 화면 이동 때 본문으로 옮겨 주�
 .locked .mc-dock{display:none}
 
 /* Dock */
-.mc-app{--sz:58px;position:relative;width:var(--sz);height:var(--sz);border-radius:22.5%;display:grid;place-items:center;color:#fff;overflow:hidden;flex:none;transition:width .08s,height .08s;
+.mc-app{--sz:58px;position:relative;width:var(--sz);height:var(--sz);border-radius:22.5%;display:grid;place-items:center;color:#fff;overflow:hidden;flex:none;transition:width .08s,height .08s,transform .14s ease-out;
   box-shadow:0 3px 8px rgba(0,0,0,.32),inset 0 0 0 .5px rgba(255,255,255,.45),inset 0 1px 1px rgba(255,255,255,.55)}
 .mc-app::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.34),rgba(255,255,255,0) 52%);pointer-events:none}
 .mc-app svg{width:56%;height:56%;fill:none;stroke:#fff;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 1.5px rgba(0,0,0,.28));position:relative;z-index:1}
@@ -44,7 +43,7 @@ main:focus-visible{outline:none}   /* 화면 이동 때 본문으로 옮겨 주�
 .mc-g-blue{background:linear-gradient(180deg,#5ac8fa,#0a7aff)}.mc-g-green{background:linear-gradient(180deg,#7be495,#1fb356)}
 .mc-g-orange{background:linear-gradient(180deg,#ffc15a,#ff8a00)}.mc-g-purple{background:linear-gradient(180deg,#d6a0ff,#8e44f0)}
 .mc-g-pink{background:linear-gradient(180deg,#ff8fb0,#ff2d55)}.mc-g-gray{background:linear-gradient(180deg,#b8b8be,#6c6c72)}
-.mc-dock{position:fixed;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);max-width:calc(100vw - 12px);display:flex;align-items:flex-end;gap:clamp(4px,1.1vw,10px);
+.mc-dock{touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;position:fixed;left:50%;bottom:max(8px,env(safe-area-inset-bottom));transform:translateX(-50%);max-width:calc(100vw - 12px);display:flex;align-items:flex-end;gap:clamp(4px,1.1vw,10px);
   padding:clamp(6px,1.2vw,9px) clamp(8px,1.4vw,12px);border-radius:clamp(20px,3.4vw,28px);z-index:55;
   background:rgba(255,255,255,.2);-webkit-backdrop-filter:blur(34px) saturate(190%);backdrop-filter:blur(34px) saturate(190%);
   box-shadow:0 12px 40px rgba(0,0,0,.34),inset 0 0 0 1px rgba(255,255,255,.36),inset 0 1px 0 rgba(255,255,255,.5)}
@@ -52,13 +51,31 @@ main:focus-visible{outline:none}   /* 화면 이동 때 본문으로 옮겨 주�
 .mc-it .mc-app{--sz:var(--mc-d)}
 .mc-it i{position:absolute;bottom:-6px;width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.9);display:none}
 .mc-it[aria-current="page"] i{display:block}
-.mc-it em{position:absolute;bottom:calc(100% + 12px);left:50%;transform:translateX(-50%);white-space:nowrap;padding:5px 12px;border-radius:9px;background:rgba(40,40,44,.78);color:#fff;font:500 13px/1 var(--sans);font-style:normal;opacity:0;pointer-events:none;transition:opacity .12s}
+.mc-it em{position:absolute;bottom:calc(100% + 12px);left:50%;transform:translateX(calc(-50% + var(--mc-tx,0px)));white-space:nowrap;padding:5px 12px;border-radius:9px;background:rgba(40,40,44,.78);color:#fff;font:500 13px/1 var(--sans);font-style:normal;opacity:0;pointer-events:none;transition:opacity .12s}
 .mc-it:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .mc-it:focus-visible em{opacity:1}
 @media(hover:hover){.mc-it:hover em{opacity:1}}
+/* 터치: 손가락을 올린(누른) 아이콘은 이름 말풍선이 뜨고 살짝 떠오른다. (hover 가 없는 폰·태블릿용. js/mac.js 가 mc-tip 을 붙인다) */
+.mc-it.mc-tip em{opacity:1}
+.mc-it.mc-tip .mc-app{transform:translateY(-7px) scale(1.1)}
 
 /* 폭에 따른 정리: 메뉴는 Dock이 맡으므로 좁은 화면에서는 위쪽 글자 메뉴를 숨긴다 */
-@media(max-width:860px){.top .bar{flex-wrap:nowrap;height:36px;padding:0 16px}.brand{width:auto;flex:1;min-width:0}}
-@media(max-width:760px){nav{display:none}.mc-clk{margin-left:auto;flex:none}.bar{gap:12px}}
+/* 상단 메뉴: 한 줄에 다 들어가면 한 줄(로고 | 메뉴 | 시계). 다 안 들어가면 js/mac.js 가 .bar 에 mc-wrap 을 붙여
+ * 1줄 = 로고 + 시계, 그 아래 = 메뉴(줄바꿈되어 두 줄이든 세 줄이든 전부 보인다). 고정 폭 기준이 아니라 실제 폭을 재서 정한다.
+ * (기존 css/style.css 의 860px 이하 규칙은 메뉴를 한 줄에 억지로 줄여 넣었으므로 아래에서 되돌린다) */
+.top .bar{flex-wrap:nowrap;height:36px;padding:0 22px;gap:24px;align-items:center}
+.brand{width:auto;flex:none;padding:0}
+nav{flex:1 1 0;min-width:0;width:auto;height:100%;margin:0 8px;padding:0;overflow:hidden;border-top:0;justify-content:flex-start}
+nav a{flex:none;justify-content:flex-start;padding:0 13px;font-size:12px;text-align:left;letter-spacing:-.01em}
+.mc-clk{flex:none}
+.top .bar.mc-wrap{flex-wrap:wrap;height:auto;padding:0 16px;gap:0}
+.mc-wrap .brand{order:1;flex:1;min-width:0;height:32px}
+.mc-wrap .mc-clk{order:2;display:flex;align-items:center;height:32px}
+.mc-wrap nav{order:3;flex:0 0 100%;width:100%;height:auto;margin:0 0 4px;overflow:visible;flex-wrap:wrap}
+/* 줄바꿈된 메뉴: 글자 왼쪽 여백을 없애고 간격은 오른쪽에만 둔다 → 어느 줄이든 첫 글자가 같은 자리에서 시작한다.
+ * (왼쪽 여백이 있으면 첫 줄 맨 앞 글자만 붙고 둘째 줄부터는 안쪽으로 들어가 어긋난다)
+ * 시작 자리는 로고 동그라미의 왼쪽 끝과 같다. 로고 글자("OPENNESS STUDIO") 시작에 맞추려면 --mc-nav-indent 를 24px 로 한다. */
+.mc-wrap nav{padding-left:var(--mc-nav-indent,0px)}
+.mc-wrap nav a{height:28px;padding:0 20px 0 0}
 @media(max-width:480px){.mc-clk .mc-dt{display:none}main{width:calc(100% - 16px);margin-top:10px;padding-top:54px}}
-@media(prefers-reduced-motion:reduce){.mc-app{transition:none}}
+@media(prefers-reduced-motion:reduce){.mc-app{transition:none}.mc-it.mc-tip .mc-app{transform:none}}

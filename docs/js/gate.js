@@ -107,6 +107,23 @@
     btn.disabled = false;
   }
 
+  /* 로그인 영역은 늘 화면 아래에 둔다. 터치 기기에서 키패드가 올라오면 그 높이만큼만 일시적으로 위로 들어 올려서
+   * 입력창과 입장 버튼이 키패드에 가려지지 않게 하고, 키패드가 내려가면 원래 자리로 돌아온다. */
+  function liftAboveKeyboard() {
+    var gate = $('gate'), pw = $('gatePw'), vv = window.visualViewport;
+    function set(px) { gate.style.setProperty('--kb', px + 'px'); gate.classList.toggle('kb-open', px > 0); }
+    function calc() {
+      if (document.activeElement !== pw) { set(0); return; }
+      // 키패드 높이 ≈ 화면 높이 − 보이는 영역(키패드를 뺀 영역) 높이. visualViewport 를 못 쓰면 화면의 약 42%로 가정한다
+      set(vv ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : Math.round(window.innerHeight * 0.42));
+    }
+    pw.addEventListener('focus', function () { calc(); setTimeout(calc, 300); });   // 키패드가 다 올라올 때까지 한 번 더 맞춘다
+    pw.addEventListener('blur', function () { setTimeout(function () { if (document.activeElement !== pw) set(0); }, 200); });
+    if (vv) { vv.addEventListener('resize', calc); vv.addEventListener('scroll', calc); }
+    // 입장 버튼을 눌러도 입력창의 초점(=키패드)을 유지한다: 키패드가 내려가며 버튼이 손가락 밑에서 움직이면 눌림이 빗나간다
+    $('gateBtn').addEventListener('mousedown', function (e) { e.preventDefault(); });
+  }
+
   async function init() {
     if (!window.crypto || !crypto.subtle) {
       $('gateMsg').textContent = '이 브라우저에서는 열 수 없습니다. 최신 Chrome·Edge·Safari를 사용해 주세요.';
@@ -117,6 +134,7 @@
     var sync = function () { if (fldEl) fldEl.classList.toggle('has-val', !!pwEl.value); };
     ['input', 'change', 'keyup'].forEach(function (ev) { pwEl.addEventListener(ev, sync); });
     sync();
+    if (!AUTOFOCUS) liftAboveKeyboard();
     try {                                                 // 같은 탭에서 이미 입력했다면 바로 연다
       var saved = sessionStorage.getItem(SS);
       if (saved) {
