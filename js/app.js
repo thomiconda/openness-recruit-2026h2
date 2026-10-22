@@ -550,8 +550,56 @@
     var n = Math.round((d - TODAY) / 864e5);
     return n === 0 ? 'D-Day' : n > 0 ? 'D-' + n : 'D+' + (-n);
   }
+  function ddayAria(s) {                       // 화면 낭독용: D+2 → "2일 지남", D-8 → "8일 남음"
+    var n = Math.round((toD(s) - TODAY) / 864e5);
+    return n === 0 ? '오늘' : n > 0 ? n + '일 남음' : (-n) + '일 지남';
+  }
   function nextStage() {
     return SCH.stages.filter(function (s) { return s.start && toD(s.end || s.start) >= TODAY; })[0] || null;
+  }
+  // 경력·신입처럼 구분별로 날짜가 다른 단계(면접)를 구분별로 나눈다. 날짜는 면접 일정표(SCH.slots)와 지원자 구분(경력/신입)에서 뽑으므로,
+  // 일정표 날짜를 고치면 D-day 도 자동으로 따라온다. 일정표가 비어 있으면 단계의 안내 문장(text)에서 "경력 10.20(화) …" 형식으로 읽는다.
+  // 반환: [{ label:'경력', when:'10.20(화) 17:00', date:'2026-10-20' }, …] / 나눌 수 없으면 null
+  function groupSchedule(st) {
+    if (!st || st.key !== 'interview') return null;
+    var iv = SCH.interview || {}, by = {}, order = [];
+    (SCH.slots || []).forEach(function (x) {
+      var a = findByName(x.name); if (!a || !x.date) return;
+      if (!by[a.type]) { by[a.type] = {}; order.push(a.type); }
+      (by[a.type][x.date] = by[a.type][x.date] || []).push(x);
+    });
+    var ORD = ['경력', '신입'];
+    order.sort(function (x, y) { var i = ORD.indexOf(x), j = ORD.indexOf(y); return (i < 0 ? 9 : i) - (j < 0 ? 9 : j); });
+    var out = order.map(function (t) {
+      var dates = Object.keys(by[t]).sort();
+      var whens = dates.map(function (d) {
+        var L = by[t][d].slice().sort(function (x, y) { return String(x.time).localeCompare(String(y.time)); }), first = L[0], last = L[L.length - 1];
+        var tm = esc(timeRange(first.time, iv.minutes, true).replace(' 시작', ''));          // 시작 시각
+        if (L.length > 1 && !last.startOnly) tm += '\u00a0~\u00a0' + (timeRange(last.time, iv.minutes).split(' ~ ')[1] || '').replace(/^\s+/, '');   // 여러 명이면 마지막 끝 시각까지
+        return mdwText(d) + ' ' + tm;
+      });
+      // D-day 기준 날짜: 아직 안 지난 가장 가까운 날, 모두 지났으면 가장 최근 날
+      var up = dates.filter(function (d) { return toD(d) >= TODAY; })[0];
+      return { label: t, when: whens.join(' · '), date: up || dates[dates.length - 1] };
+    });
+    if (out.length > 1 || (out.length === 1 && st.text)) return out.length ? out : null;
+    // 일정표가 없을 때: 안내 문장을 읽는다
+    if (!st.text || !st.start) return null;
+    var yr = st.start.slice(0, 4), segs = st.text.split(/\s*\/\s*/).map(function (seg) {
+      var m = seg.match(/^(경력|신입)\s*(.*)$/), d = seg.match(/(\d{1,2})\.(\d{1,2})/);
+      return m && d ? { label: m[1], when: esc(m[2]).replace(/ ~ /g, '\u00a0~\u00a0'), date: yr + '-' + pad(+d[1]) + '-' + pad(+d[2]) } : null;
+    }).filter(Boolean);
+    return segs.length > 1 ? segs : null;
+  }
+  function nowBanner(n) {
+    var G = groupSchedule(n);
+    if (!G) return '<div class="nowc"><span class="chip-s now">다음 일정</span><b>' + esc(n.label) + '</b><span>' + whenWText(n) + '</span><span class="dd">' + ddayText(n.start) + '</span></div>';
+    return '<div class="nowc ng"><div class="ng-h"><span class="chip-s now">다음 일정</span><b>' + esc(n.label) + '</b></div><div class="ng-l">' +
+      G.map(function (g) {
+        var past = toD(g.date) < TODAY;
+        return '<div class="ng-r"><span class="ng-t' + (g.label === '경력' ? ' e' : '') + '">' + esc(g.label) + '</span><span class="ng-w">' + g.when + '</span>' +
+          '<span class="ng-d' + (past ? ' past' : '') + '" aria-label="' + ddayAria(g.date) + '">' + ddayText(g.date) + '</span></div>';
+      }).join('') + '</div></div>';
   }
   function timeRange(t, minutes, startOnly) {      // "10:00" + 30분 -> "10:00 ~ 10:30" (startOnly 면 "10:00 시작")
     var m = String(t).match(/^(\d{1,2}):(\d{2})$/);
@@ -573,7 +621,7 @@
         '<span class="sc chip-s ' + st + '">' + STATUS_LABEL[st] + '</span><p>' + esc(s.desc) + '</p></div></li>';
     }).join('');
     var n = nextStage();
-    var now = n ? '<div class="nowc"><span class="chip-s now">다음 일정</span><b>' + esc(n.label) + '</b><span>' + whenWText(n) + '</span><span class="dd">' + ddayText(n.start) + '</span></div>' : '';
+    var now = n ? nowBanner(n) : '';
     var info = [['장소', iv.place], ['소요 시간', iv.duration || (iv.minutes || 30) + '분 (지원자 1명당)'], ['면접관', iv.panel], ['진행 방식', iv.method]].map(function (r) {
       return '<dt>' + r[0] + '</dt><dd' + (r[1] ? '' : ' class="tbd"') + '>' + (r[1] ? esc(r[1]).replace(/ \/ /g, '<br>') : '미정') + '</dd>';
     }).join('');
