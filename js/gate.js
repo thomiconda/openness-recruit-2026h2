@@ -6,6 +6,9 @@
   var enc = new TextEncoder(), dec = new TextDecoder();
   var SS = 'opn_k';              // 같은 탭에서 새로고침해도 다시 묻지 않도록 키를 세션에만 잠시 보관
   var key = null, fails = 0;
+  // 마우스가 있는 기기(PC)에서는 바로 입력할 수 있게 입력창에 초점을 준다.
+  // 터치 기기(폰·태블릿)에서는 초점을 주지 않는다: 열자마자 키패드가 올라와 화면을 가리기 때문이다. 입력창을 직접 눌러 입력한다.
+  var AUTOFOCUS = !!(window.matchMedia && matchMedia('(hover:hover) and (pointer:fine)').matches);
 
   function unb64(s) {
     var bin = atob(s), u = new Uint8Array(bin.length);
@@ -81,7 +84,7 @@
   async function submit(e) {
     e.preventDefault();
     var msg = $('gateMsg'), btn = $('gateBtn'), pw = $('gatePw').value;
-    if (!pw) return;
+    if (!pw) { $('gatePw').focus(); return; }      // 비어 있을 때 화살표를 누르면 입력창으로 이동
     btn.disabled = true; msg.textContent = '확인 중…';
     try {
       var raw = unb64(window.__PAYLOAD);
@@ -97,7 +100,7 @@
       msg.textContent = '비밀번호가 맞지 않습니다.' + (fails > 2 ? ' 잠시 후 다시 시도해 주세요.' : '');
       var fld = $('gateField');
       if (fld) { fld.classList.remove('shake'); void fld.offsetWidth; fld.classList.add('shake'); }
-      setTimeout(function () { btn.disabled = false; $('gatePw').focus(); }, Math.min(1000 * fails, 8000));
+      setTimeout(function () { btn.disabled = false; if (AUTOFOCUS) $('gatePw').focus(); }, Math.min(1000 * fails, 8000));
       return;
     }
     btn.disabled = false;
@@ -116,7 +119,7 @@
         await unlock(k); return;
       }
     } catch (e) { try { sessionStorage.removeItem(SS); } catch (x) {} }
-    $('gatePw').focus();
+    if (AUTOFOCUS) $('gatePw').focus();
   }
   init();
 })();
