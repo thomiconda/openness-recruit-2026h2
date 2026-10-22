@@ -114,10 +114,17 @@
     var sub = a.profile ? a.profile.headline : '';
     return '<a class="row" href="#/applicant/' + a.no + '">' +
       '<span class="no">' + pad(a.no) + '</span>' +
-      '<img src="' + esc(a.thumb) + '" alt="" loading="lazy" width="96" height="64">' +
+      '<span class="th"><img src="' + esc(a.thumb) + '" alt="" loading="lazy" width="168" height="112"></span>' +
       '<div><div class="nm">' + avatar(a, 28) + '<span>' + esc(nameOf(a)) + '</span></div><div class="sub">' + esc(sub) + '</div></div>' +
-      '<span class="tag">' + esc(a.type) + ' · ' + dateOf(a) + '</span>' +
-      '<span class="arrow" aria-hidden="true">→</span></a>';
+      '<span class="tag' + (a.type === '경력' ? ' e' : '') + '">' + esc(a.type) + ' · ' + dateOf(a) + '</span>' +
+      '<span class="arrow" aria-hidden="true">›</span></a>';
+  }
+  // 현황 화면의 면접 대상자: 글이 위, 사진이 아래로 이어지는 큰 타일
+  function feature(a) {
+    var sub = a.profile ? a.profile.headline : '';
+    return '<a class="fc" href="#/applicant/' + a.no + '"><span class="ft"><span class="ey' + (a.type === '경력' ? ' e' : '') + '">' + esc(a.type) + ' · No. ' + pad(a.no) + '</span>' +
+      '<span class="nm2">' + esc(nameOf(a)) + '</span><span class="sub">' + esc(sub) + '</span><span class="lk">자세히 보기 <i aria-hidden="true">›</i></span></span>' +
+      '<span class="th2"><img src="' + esc(a.thumb) + '" alt="" loading="lazy"></span></a>';
   }
   function soon(title, desc) {
     return '<h1>' + title + '<small>' + desc + '</small></h1>' +
@@ -133,7 +140,7 @@
       [count(function (a) { return a.type === '경력'; }), '경력'],
       [count(function (a) { return !!a.master; }), '석사 이상']
     ].map(function (k) {
-      return '<div class="c"><h3>' + k[1] + '</h3><div class="num">' + k[0] + '<small>명</small></div></div>';
+      return '<div class="tile kt"><p class="kl">' + k[1] + '</p><div class="num">' + k[0] + '<small>명</small></div></div>';
     }).join('');
 
     // 전형 단계: 지원자 데이터의 stage(1=서류 합격, 2=면접, 3=최종)가 채워지면 자동 집계
@@ -150,14 +157,24 @@
       return '<div class="m"><span>' + d[0] + '</span><i><b style="width:' + (n / total * 100) + '%"></b></i><span>' + n + '/' + total + '</span></div>';
     }).join('');
 
-    return '<h1>2026 하반기 채용 현황<small>조경 디자이너 · 실무팀 공유용</small></h1>' +
-      '<section class="g g4" aria-label="지원 현황">' + kpi + '</section>' +
-      '<section class="g g2">' +
-        '<div class="c"><h3>전형 진행</h3><div class="steps">' + steps + '</div></div>' +
-        '<div class="c"><h3>제출 서류 현황</h3>' + docs + '<p class="fn">△는 포트폴리오 등에 포함해 제출한 경우로 제출에 포함해 집계했습니다.</p></div>' +
+    // 진행 중(또는 다음) 전형 일정. 진행 중이면 D-day 대신 '진행 중'으로 표시한다.
+    var ns = nextStage(), live = ns && stageStatus(ns) === 'now', nowTile = '', eyebrow = '2026 하반기 · 조경 디자이너';
+    if (ns) {
+      eyebrow = (live ? '지금 ' : '다음 ') + esc(ns.label) + (live ? ' 진행 중' : ' · ' + ddayText(ns.start));
+      nowTile = '<div class="tile dark nowt"><span class="ey">' + (live ? 'NOW' : 'NEXT') + '</span><b class="nt">' + esc(ns.label) + '</b>' +
+        '<span class="nd">' + (ns.text ? whenText(ns) : whenWText(ns)) + '</span>' +
+        '<span class="hh-dd">' + (live ? '진행 중' : ddayText(ns.start)) + '</span>' +
+        '<a class="lk" href="#/schedule">전형 일정 보기 <i aria-hidden="true">›</i></a></div>';
+    }
+    return '<section class="hero-a"><p class="ey2">' + eyebrow + '</p>' +
+        '<h1>2026 하반기<br>채용 현황<small>조경 디자이너 · 실무팀 공유용</small></h1>' +
+        '<div class="btns"><a class="btn" href="#/interview">면접 대상자 보기</a><a class="btn ghost" href="#/schedule">전형 일정 <i aria-hidden="true">›</i></a></div></section>' +
+      '<section class="bento" aria-label="지원 현황">' + nowTile + kpi +
+        '<div class="tile wide"><h2>전형 진행</h2><div class="steps">' + steps + '</div></div>' +
+        '<div class="tile wide"><h2>제출 서류 현황</h2>' + docs + '<p class="fn">△는 포트폴리오 등에 포함해 제출한 경우로 제출에 포함해 집계했습니다.</p></div>' +
       '</section>' +
-      '<h2>면접 대상자 <a href="#/interview">전체 ' + targets.length + '명 보기 →</a></h2>' +
-      (targets.length ? '<div class="list">' + targets.map(row).join('') + '</div>' : '<div class="empty2">면접 대상자가 확정되면 이곳에 표시됩니다.</div>');
+      '<h2>면접 대상자 <a href="#/interview">전체 ' + targets.length + '명 보기 <i aria-hidden="true">›</i></a></h2>' +
+      (targets.length ? '<div class="fg">' + targets.map(feature).join('') + '</div>' : '<div class="empty2">면접 대상자가 확정되면 이곳에 표시됩니다.</div>');
   }
 
   /* ---------- 화면: 지원자 목록 ---------- */
@@ -185,7 +202,7 @@
       return '<button class="chip" type="button" data-type="' + c[0] + '" aria-pressed="' + (listState.type === c[0]) + '">' + c[1] + '</button>';
     }).join('');
     return '<h1>지원자 목록<small>지원 순서(접수번호) 기준 · 이름을 눌러 상세 보기</small></h1>' +
-      '<h2 style="margin-top:32px">전체 <small id="cnt"></small></h2>' +
+      '<h2 style="margin-top:32px">전체 <small id="cnt" aria-live="polite"></small></h2>' +
       '<div class="tools">' + chips +
         '<span class="sp"></span>' +
         '<input id="q" type="search" placeholder="이름 검색" aria-label="이름 검색" value="' + esc(listState.q) + '">' +
@@ -287,7 +304,7 @@
       var L = sortedBy(poolType(g));
       if (!L.length) return '';
       var head = COLS.map(function (c) {
-        return '<th data-k="' + c[2] + '">' + c[0] + '<span class="s">' + (pc.sort.k === c[2] ? (pc.sort.dir > 0 ? '▲' : '▼') : '') + '</span></th>';
+        return '<th data-k="' + c[2] + '" aria-sort="' + (pc.sort.k === c[2] ? (pc.sort.dir > 0 ? 'ascending' : 'descending') : 'none') + '"><button type="button" class="sb">' + c[0] + '<span class="s" aria-hidden="true">' + (pc.sort.k === c[2] ? (pc.sort.dir > 0 ? '▲' : '▼') : '') + '</span></button></th>';
       }).join('');
       var body = L.map(function (a) {
         return '<tr>' + COLS.map(function (c) {
@@ -296,17 +313,18 @@
       }).join('');
       var cards = L.map(function (a) {
         return '<article class="pc"><div class="ph">' + avatar(a, 52) + '<div><div class="n">' + nameOnly(a) + '</div><div class="s">' + badge(a) + ' ' + ageOf(a) + '</div></div><span class="no">' + pad(a.no) + '</span></div>' +
-          '<dl><dt>성별</dt><dd>' + dash(a.gender) + '</dd><dt>최종학력</dt><dd>' + eduFinal(a) + '</dd><dt>전공</dt><dd>' + dash(a.major) + '</dd><dt>자격증</dt><dd>' + dash(a.certificates) + '</dd><dt>거주지</dt><dd>' + dash(a.residence) + '</dd><dt>지원일</dt><dd>' + esc(a.appliedAt) + '</dd><dt>서류</dt><dd class="docs">' + docsHtml(a) + ' <span style="font-size:11px;color:var(--mute)">포·이·자</span></dd></dl>' +
-          '<div class="cd"><h5>경력 사항</h5>' + careerHtml(a) + '</div></article>';
+          '<dl><dt>성별</dt><dd>' + dash(a.gender) + '</dd><dt>최종학력</dt><dd>' + eduFinal(a) + '</dd><dt>전공</dt><dd>' + dash(a.major) + '</dd><dt>자격증</dt><dd>' + dash(a.certificates) + '</dd><dt>거주지</dt><dd>' + dash(a.residence) + '</dd><dt>지원일</dt><dd>' + esc(a.appliedAt) + '</dd><dt>서류</dt><dd class="docs">' + docsHtml(a) + ' <span style="font-size:11px;color:var(--gray)">포·이·자</span></dd></dl>' +
+          '<div class="cd"><h3>경력 사항</h3>' + careerHtml(a) + '</div></article>';
       }).join('');
       return '<h2 class="gt">' + g + '<small>' + L.length + '명</small></h2>' +
-        '<div class="tw"><table><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' +
+        '<div class="tw"><table aria-label="' + g + ' ' + pc.label + ' 비교표"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' +
         '<div class="cg">' + cards + '</div>';
     }).join('');
     Array.prototype.forEach.call(host.querySelectorAll('th'), function (h) {
       h.addEventListener('click', function () {
-        var k = h.getAttribute('data-k');
+        var k = h.getAttribute('data-k'), at = Array.prototype.indexOf.call(host.querySelectorAll('th'), h);
         pc.sort.dir = pc.sort.k === k ? -pc.sort.dir : 1; pc.sort.k = k; paintFull();
+        var nb = host.querySelectorAll('th button')[at]; if (nb) nb.focus();   // 다시 그려도 키보드 초점은 같은 열에 둔다
       });
     });
   }
@@ -326,7 +344,7 @@
   function paintPick() {
     document.getElementById('pickgrp').innerHTML = pc.groups.map(function (g) {
       var L = poolType(g), n = L.filter(function (a) { return pc.sel.indexOf(a.no) > -1; }).length;
-      return '<div class="pg"><h3>' + g + ' ' + L.length + '명<span><em>' + (n ? n + '명 선택' : '') + '</em></span></h3>' +
+      return '<div class="pg"><h2>' + g + ' ' + L.length + '명<span><em>' + (n ? n + '명 선택' : '') + '</em></span></h2>' +
         L.map(function (a) {
           return '<button class="pk" type="button" data-n="' + a.no + '" aria-pressed="' + (pc.sel.indexOf(a.no) > -1) + '"><i>' + pad(a.no) + '</i>' + esc(nameOf(a)) + '</button>';
         }).join('') + '</div>';
@@ -348,23 +366,23 @@
     var cmp = document.getElementById('cmp'), st = document.getElementById('st');
     if (!P.length) {
       cmp.innerHTML = '<tbody><tr><td class="empty">위에서 비교할 지원자를 선택해 주세요.</td></tr></tbody>';
-      st.innerHTML = '<div class="it"><div class="v" style="display:block;text-align:center;color:var(--mute);padding:28px">위에서 비교할 지원자를 선택해 주세요.</div></div>';
+      st.innerHTML = '<div class="it"><div class="v" style="display:block;text-align:center;color:var(--gray);padding:28px">위에서 비교할 지원자를 선택해 주세요.</div></div>';
       return;
     }
     function differs(r) {
       var s = {}; P.forEach(function (a) { s[String(r[2](a) || '')] = 1; });
       return P.length > 1 && Object.keys(s).length > 1;
     }
-    cmp.innerHTML = '<thead><tr><th></th>' + P.map(function (a) {
+    cmp.innerHTML = '<thead><tr><th><span class="sr">항목</span></th>' + P.map(function (a) {
       return '<th>' + avatar(a, 48) + '<br>' + nameOnly(a) + '<small>' + esc(a.type) + ' · ' + ageOf(a) + '</small></th>';
     }).join('') + '</tr></thead><tbody>' + ROWS.map(function (r) {
-      return '<tr class="' + (differs(r) ? 'diff' : '') + '"><td>' + r[0] + '</td>' + P.map(function (a) { return '<td>' + r[1](a) + '</td>'; }).join('') + '</tr>';
+      return '<tr class="' + (differs(r) ? 'diff' : '') + '"><td>' + r[0] + (differs(r) ? '<span class="df">차이 있음</span>' : '') + '</td>' + P.map(function (a) { return '<td>' + r[1](a) + '</td>'; }).join('') + '</tr>';
     }).join('') + '</tbody>';
     st.innerHTML = '<div class="sel">' + P.map(function (a) {
       return '<div class="p">' + avatar(a, 36) + '<div><b>' + esc(nameOf(a)) + '</b><small>' + esc(a.type) + ' · ' + (a.birthYear ? a.age + '세' : '–') + '</small></div></div>';
     }).join('') + '</div>' + ROWS.map(function (r) {
       var d = differs(r);
-      return '<section class="it ' + (d ? 'diff' : '') + '"><h4>' + r[0] + (d ? '<em>차이 있음</em>' : '') + '</h4>' +
+      return '<section class="it ' + (d ? 'diff' : '') + '"><h3>' + r[0] + (d ? '<em>차이 있음</em>' : '') + '</h3>' +
         P.map(function (a) { return '<div class="v"><span>' + esc(nameOf(a).split(' ')[0]) + '</span><div>' + r[1](a) + '</div></div>'; }).join('') + '</section>';
     }).join('');
   }
@@ -384,7 +402,7 @@
     var title = pc === PCTX.interview ? '면접 대상자' : '인적사항';
     var sum = pc.label + ' ' + pool().length + '명 · ' + pc.groups.map(function (g) { return g + ' ' + poolType(g).length + '명'; }).join(' / ');
     return '<h1>' + title + '<small>' + sum + '</small></h1>' +
-      '<div class="seg" role="tablist"><a role="tab" href="' + fullHref + '" aria-selected="' + !cmp + '">전체 비교표</a><a role="tab" href="' + cmpHref + '" aria-selected="' + cmp + '">선택 비교</a></div>' +
+      '<div class="seg" role="group" aria-label="보기 방식"><a href="' + fullHref + '"' + (cmp ? '' : ' aria-current="page"') + '>전체 비교표</a><a href="' + cmpHref + '"' + (cmp ? ' aria-current="page"' : '') + '>선택 비교</a></div>' +
       '<p class="hint">' + (cmp ? '비교할 ' + pc.label + '를 신입·경력 구분 없이 최대 4명까지 골라 항목별로 비교합니다.' : pc.groups.join('·') + ' 그룹별로 모든 ' + pc.label + '를 한 번에 봅니다. (PC: 표 · 모바일: 카드)') + '</p>' +
       (cmp
         ? '<section class="view on cmp"><div class="pickgrp" id="pickgrp"></div><div class="tw"><table id="cmp"></table></div><div class="st-wrap" id="st"></div></section>'
@@ -461,11 +479,11 @@
       sections += '<section class="sec"><p class="mute">이미지를 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.</p></section>';
     }
     if (pf) {
-      sections += '<section class="sec"><div class="lab">Profile</div><h2>프로필 페이지</h2><figure class="pfig" data-zoom="' + esc(pf) + '"><img src="' + esc(pf) + '" alt="' + esc(nameOf(a)) + ' 프로필 페이지" loading="lazy"><figcaption>눌러서 크게 보기 · 연락처는 가려져 있습니다</figcaption></figure></section>';
+      sections += '<section class="sec"><div class="lab">Profile</div><h2>프로필 페이지</h2><figure class="pfig" data-zoom="' + esc(pf) + '" tabindex="0" role="button" aria-label="프로필 페이지 크게 보기"><img src="' + esc(pf) + '" alt="' + esc(nameOf(a)) + ' 프로필 페이지" loading="lazy"><figcaption>눌러서 크게 보기 · 연락처는 가려져 있습니다</figcaption></figure></section>';
     }
     sections += '<section class="sec"><div class="lab">Selected Works</div><h2>대표 작업</h2><div class="gal">' +
       w.map(function (s, i) {
-        return '<figure data-zoom="' + esc(s) + '"><img src="' + esc(s) + '" alt="" loading="lazy"><figcaption>작업 ' + (i + 1) + ' / ' + w.length + '</figcaption></figure>';
+        return '<figure data-zoom="' + esc(s) + '" tabindex="0" role="button" aria-label="작업 ' + (i + 1) + ' 크게 보기"><img src="' + esc(s) + '" alt="" loading="lazy"><figcaption>작업 ' + (i + 1) + ' / ' + w.length + '</figcaption></figure>';
       }).join('') + '</div></section>';
 
     return '<div class="wrap">' +
@@ -479,19 +497,28 @@
       '<p class="src">출처: ' + esc(p.sourceNote || '제출 서류 기준') + ' · 제출 서류에 없는 내용은 적지 않았습니다.</p>' +
     '</div>';
   }
-  function zoomImg(src) {
+  // 확대 보기: 대화상자로 열고, 닫기 버튼에 초점을 주며, 닫으면 열었던 자리로 초점을 돌려준다.
+  function zoomImg(src, opener) {
     var d = document.createElement('div');
-    d.className = 'lb2'; d.innerHTML = '<img src="' + esc(src) + '" alt=""><button type="button" aria-label="닫기">×</button>';
-    d.addEventListener('click', function () { d.remove(); });
+    d.className = 'lb2'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-label', '이미지 크게 보기');
+    d.innerHTML = '<img src="' + esc(src) + '" alt=""><button type="button" aria-label="닫기">×</button>';
+    function close() { d.remove(); if (opener && opener.focus) opener.focus(); }
+    d._close = close;
+    d.addEventListener('click', close);
     document.body.appendChild(d);
+    d.querySelector('button').focus();
   }
   function bindApplicant() {
     Array.prototype.forEach.call(app.querySelectorAll('[data-zoom]'), function (el) {
-      el.addEventListener('click', function () { zoomImg(el.getAttribute('data-zoom')); });
+      el.addEventListener('click', function () { zoomImg(el.getAttribute('data-zoom'), el); });
+      el.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); zoomImg(el.getAttribute('data-zoom'), el); }
+      });
     });
   }
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') { var l = document.querySelector('.lb2'); if (l) l.remove(); }
+    if (e.key === 'Escape') { var l = document.querySelector('.lb2'); if (l) l._close(); }
+    if (e.key === 'Tab' && document.querySelector('.lb2')) e.preventDefault();   // 확대 보기 안에는 초점 둘 곳이 닫기 버튼 하나뿐
   });
 
   /* ---------- 화면: 전형 일정 (시안 A: 스텝퍼) ---------- */
@@ -593,7 +620,7 @@
     ].map(function (r) { return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>'; }).join('');
     var notices = (G.notices || []).map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('');
     return '<div class="gh"><p class="gk">' + esc(G.company || '') + ' · ' + esc(G.title || '') + '</p>' +
-        '<h1 class="gt1">' + (G.tagline || []).map(esc).join('<br>') + '</h1></div>' +
+        '<h1 class="gt1">' + (G.tagline || []).map(function (t, i) { return '<span class="l' + i + '">' + esc(t) + '</span>'; }).join('<br>') + '</h1></div>' +
       '<h2 class="gs">모집 내용</h2><div class="pos-g">' + pos + '</div>' +
       '<h2 class="gs">채용 안내</h2><div class="c"><dl class="ci">' + rows + '</dl></div>' +
       '<h2 class="gs">이 페이지 이용 안내</h2><ul class="gn">' + notices + '</ul>';
@@ -613,6 +640,8 @@
     render();
   }
   document.addEventListener('click', function (e) {
+    var sk = e.target.closest && e.target.closest('a.skip');
+    if (sk) { e.preventDefault(); app.focus(); return; }
     var a = e.target.closest && e.target.closest('a[href^="#/"]');
     if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
     e.preventDefault();
@@ -625,6 +654,7 @@
     var cur = nav.querySelector('[aria-current]');
     if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
+  var rendered = false;
   function render() {
     var r = parse();
     var known = ROUTES.some(function (x) { return x.path === r.path; });
@@ -644,6 +674,8 @@
     if (after) after();
     document.title = (r.path ? ROUTES.filter(function (x) { return x.path === r.path; })[0].label + ' · ' : '') + '오픈니스 스튜디오 채용';
     window.scrollTo(0, 0);
+    if (rendered) app.focus({ preventScroll: true });   // 화면이 바뀌면 스크린리더·키보드 초점을 본문 처음으로
+    rendered = true;
   }
   // 뒤로 가기·주소 직접 입력
   function fromLocation() { routeHash = location.hash || '#/'; render(); }
