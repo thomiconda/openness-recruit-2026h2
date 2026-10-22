@@ -15,6 +15,16 @@
   function b64(u8) { var s = ''; for (var i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]); return btoa(s); }
   function $(id) { return document.getElementById(id); }
 
+  /* 잠금 화면 시계: 날짜(10월 22일 목요일)와 시각(7:42). 분이 바뀔 때만 갱신한다 */
+  function tick() {
+    var d = new Date(), h = d.getHours() % 12 || 12, m = d.getMinutes();
+    var dt = $('lockDate'), tm = $('lockTime');
+    if (dt) dt.textContent = d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' });
+    if (tm) tm.textContent = h + ':' + (m < 10 ? '0' : '') + m;
+    setTimeout(tick, (60 - d.getSeconds()) * 1000 - d.getMilliseconds() + 20);
+  }
+  tick();
+
   async function deriveKey(pw, salt, iter) {
     var km = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
     return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: salt, iterations: iter, hash: 'SHA-256' }, km,
@@ -85,6 +95,8 @@
       $('gatePw').value = '';
       btn.disabled = true;
       msg.textContent = '비밀번호가 맞지 않습니다.' + (fails > 2 ? ' 잠시 후 다시 시도해 주세요.' : '');
+      var fld = $('gateField');
+      if (fld) { fld.classList.remove('shake'); void fld.offsetWidth; fld.classList.add('shake'); }
       setTimeout(function () { btn.disabled = false; $('gatePw').focus(); }, Math.min(1000 * fails, 8000));
       return;
     }

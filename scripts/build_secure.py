@@ -8,7 +8,7 @@
 - 비밀번호 -> PBKDF2-SHA256(60만 회) -> AES-256-GCM 키. 비밀번호 자체는 어디에도 저장하지 않는다.
 - docs/payload.js : 지원자 데이터 + 일정 + 안내 + 얼굴/썸네일(작은 이미지) 암호문
 - docs/b/aNN.js   : 지원자별 큰 이미지(프로필 페이지·대표 작업) 암호문 (상세 페이지를 열 때 불러옴)
-- docs/index.html, css/, js/, assets/logo.png : 개인정보가 없는 공개 파일
+- docs/index.html, css/, js/, assets/logo.png, assets/lock.jpg : 개인정보가 없는 공개 파일
 ※ file:// 에서도 열리도록 암호문은 .js 파일(base64)로 감싸 둔다.
 ※ 4자리 숫자 같은 짧은 비밀번호는 암호문을 내려받아 대입 공격을 하면 풀릴 수 있다. 길고 복잡할수록 안전하다.
 """
@@ -94,6 +94,9 @@ shutil.copytree(os.path.join(BASE, "css"), os.path.join(OUT, "css"), dirs_exist_
 shutil.copytree(os.path.join(BASE, "js"), os.path.join(OUT, "js"), dirs_exist_ok=True)
 os.makedirs(os.path.join(OUT, "assets"), exist_ok=True)
 shutil.copy(os.path.join(BASE, "assets", "logo.png"), os.path.join(OUT, "assets", "logo.png"))
+lock = os.path.join(BASE, "assets", "lock.jpg")            # 비밀번호 화면 배경 사진 (개인정보 없음)
+if os.path.exists(lock):
+    shutil.copy(lock, os.path.join(OUT, "assets", "lock.jpg"))
 for p in (os.path.join(OUT, "css", "style.css"), os.path.join(OUT, "js", "app.js"), os.path.join(OUT, "js", "gate.js")):
     if os.path.exists(p):                                  # BOM 제거
         b = open(p, "rb").read()
